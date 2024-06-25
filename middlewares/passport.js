@@ -2,6 +2,10 @@
 const User = require("../models/User");
 const LocalStrategy = require("passport-local").Strategy;
 const bcrypt = require("bcrypt");
+const JwtStrategy = require("passport-jwt").Strategy;
+const { fromAuthHeaderAsBearerToken } = require("passport-jwt").ExtractJwt;
+require("dotenv").config();
+
 const localStrategy = new LocalStrategy(
   {
     usernameField: "username",
@@ -10,9 +14,11 @@ const localStrategy = new LocalStrategy(
   async (username, password, next) => {
     try {
       const user = await User.findOne({ username: username });
+
       if (!user) {
         return next({ msg: "Username or password is wrong!" });
       }
+
       const checkPassword = await bcrypt.compare(password, user.password);
       if (checkPassword == false) {
         return next({ msg: "Username or password is wrong!" });
@@ -24,4 +30,22 @@ const localStrategy = new LocalStrategy(
   }
 );
 
-module.exports = { localStrategy };
+const jwtStrategy = new JwtStrategy(
+  {
+    jwtFromRequest: fromAuthHeaderAsBearerToken(),
+    secretOrKey: process.env.JWT_SECRET,
+  },
+  async (payload, next) => {
+    // here you check if token is exp
+
+    const user = await User.findById(payload._id);
+
+    if (!user) {
+      return next({ msg: "User not found!" });
+    }
+
+    next(false, user); // req.user
+  }
+);
+
+module.exports = { localStrategy, jwtStrategy };

@@ -4,13 +4,13 @@ const User = require("../../models/User");
 
 const baseUrl = "http:localhost:8000/urls";
 
-exports.shorten = async (req, res) => {
+exports.shorten = async (req, res, next) => {
   // create url code
   const urlCode = shortid.generate();
   try {
     req.body.shortUrl = `${baseUrl}/${urlCode}`;
     req.body.urlCode = urlCode;
-    req.body.userId = req.params.userId;
+    req.body.userId = req.user;
     const newUrl = await Url.create(req.body);
     await User.findByIdAndUpdate(req.params.userId, {
       $push: { urls: newUrl._id },
@@ -34,10 +34,12 @@ exports.redirect = async (req, res) => {
   }
 };
 
-exports.deleteUrl = async (req, res) => {
+exports.deleteUrl = async (req, res, next) => {
   try {
+    console.log(req.params.code);
     const url = await Url.findOne({ urlCode: req.params.code });
-    if (url) {
+    console.log(url);
+    if (req.user._id.toString() === url.userId.toString()) {
       await Url.findByIdAndDelete(url._id);
       return res.status(201).json("Deleted");
     } else {
